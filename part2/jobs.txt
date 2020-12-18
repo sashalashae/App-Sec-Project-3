@@ -1,0 +1,54 @@
+Things to do:
+1. Run migrations whenever there is a change in the model
+2. Seed the data once the MYSQL Database is created
+3. Use Kubernetes jobs to do this
+
+Migration:
+
+As stated in the instructions file, the migration and seeding occur at the same time.  Thus they should be in the same
+location.  I need to locate this information to have an understanding of how the migration and seeding is done for this 
+code.  Considering this takes place during container creation, this information should be located in one of the dockerfiles.  I checked 
+the dockerfile in the main level of the project and found nothing, but the db>dockerfile did contain the information I was 
+searching for.
+
+In the docker file the following line perform the migration and seeding at the same time.
+COPY ./setup.sql /docker-entrypoint-initdb.d/setup.sql
+Since I want to do these two steps a different stages I removed this line of code and rebuilt the containers.
+To do this I ran the following commands:
+docker build -t nyuappsec/assign3-db:v0 db/
+kubectl apply -f db/k8
+
+Now that the inital problem has been removed I need to create the migration such that it happens whenever a change is made in the model.
+To do this I first created the distinctive folder to house the migrations portion called mig_part2.  In migration I need to first setup 
+the new sql database, to do this I copied db/setup.sql.  When I ran this the first time I ran into duplicate entry issues, so I needed to find
+a way to clear the tables if they already existed.  I added several DROP TABLES to the migsetup.sql file to fix this issue.  Now I need to make
+the docker yaml file, in mig_part2 I created a mig.yaml file to hold the container information for the migration.  This needs to be a Kubernetes jobs
+so I looked at an example Kubernetes jobs template provided on the kubernetes documentation.  I ended up copying the db-deployment file already in the
+project and modifying it to create my mig.yaml.
+I removed the following lines of code:
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql-container
+from the copied db-deployment, and changed the following to fit jobs, as well as added a restart policy:
+apiVersion: batch/v1
+kind: Job
+
+Once this was completed I ran the following commands to inialize the docker file representing the migraton:
+Docker Build on the database-mig: docker build -t mysql-migration .
+kubectl apply -f mig.yaml to run the migration script before seeding and create the pods.
+
+I forgot to create the dockerfile initally, so I copied the db/Dockerfile into the mig_part2.  I added the COPY migsetup.sql to copy the db/setup.sql.
+Then I reran the above commands.  I ended up having the remove the copy product.csv and user.csv as they were throwing errors.
+
+
+SEEDING:
+
+In order to seed the databases I need to connect them together.  The easiest way to do this is using python, which has a built in library called mysql.connector.
+Thus I created a python file called seedoflife.py.  In this file I connect to the database then transfer the file contents from user.csv and product.csv.
+I ran into issues at first with the path in the Dockerfile to copy the files into the Docker container so I added copies to the seed_part2 folder.  In the python file
+I call the connector on the database, using the environment variable refernced in settings.py.  Now I copied the dockerfile from the database folder as a basis for the seed docker image, the only difference is instead
+of running sql commands I will run an install on the python my sql connector and copy the python file as well.  Now that this is done I will create the yaml file.  I created a basic seed.yaml file that runs the python script.
+Now when the image runs it will seed the databases.
+

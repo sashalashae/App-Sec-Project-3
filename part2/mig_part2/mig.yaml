@@ -1,21 +1,18 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: batch/v1
+kind: Job
 metadata:
-  name: mysql-container
+  name: mysql-migration
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: mysql-container
   template:
     metadata:
       labels:
-        app: mysql-container
+        app: mysql-migration
         tier: backend
     spec:
       containers:
-        - name: mysql-container
-          image: nyuappsec/assign3-db:v0
+        - name: mysql-migration
+          image: mysql-migration:latest
+          imagePullPolicy: Never
           env:
             - name: MYSQL_ROOT_PASSWORD
               valueFrom:
@@ -25,7 +22,7 @@ spec:
 
             - name: MYSQL_DATABASE
               value: GiftcardSiteDB
-              
+
           ports:
             - containerPort: 3306
           volumeMounts:
@@ -36,3 +33,6 @@ spec:
         - name: mysql-volume-mount
           persistentVolumeClaim:
             claimName: mysql-pvc
+
+
+      restartPolicy: Never
