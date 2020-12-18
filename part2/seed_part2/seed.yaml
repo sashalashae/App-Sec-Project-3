@@ -1,0 +1,25 @@
+apiVersion: batch/v1          
+kind: Job                     
+metadata:
+ name: seeder
+spec:                        
+ template:
+   metadata:
+     name: seeder
+   spec:
+     containers:
+     - name: seeder
+       image: seeder   
+       imagePullPolicy: Never               
+       command: ["python", "/seedoflife.py"]   
+       env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: client-secret
+              key: MYSQL_ROOT
+
+        - name: MYSQL_DATABASE
+          value: GiftcardSiteDB
+
+     restartPolicy: Never         
