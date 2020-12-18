@@ -1,0 +1,61 @@
+Part 3.1:
+There is a graph counter for each of the functions, but the register function leaks sensitive information.
+It logs the password and the password usage times.  I removed this information from the views.py.  I left
+the remaining because they are only tracking numbers or metrics information without leaking data like passwords.
+Removed the following lines:
+        if pword not in graphs.keys():
+            graphs[pword] = Counter(f'counter_{pword}', 'The total number of '\
+              + f'times {pword} was used')
+        graphs[pword].inc()
+
+Part 3.2:
+
+To track the 404 erroring I started by adding the initial graph declaration with the others:
+graphs['database_error_return_404'] = Counter('database_error_return_404', 'The total number'\
+  + ' of Datat base error 404 returns')
+
+Next I added graphs['database_error_return_404'].inc() to the various functions where 404 is returned.  I added one to use_card,
+three different increments in gift_card, two to buy card, which all had 404 returns.
+
+Part 3.3:
+
+I work in DevSecOps, so I am used to doing kubernetes deployments and about a month ago deployed prometheus to one of our clusters.  
+So I utilized the resources I knew existed for prometheus deployments from prometheus and kubernetes.  That being said I added clusterrole.yaml, config-map.yaml,
+prometheus-deployment, and prometheus-ingress, and prometheus-service.yaml which are template files for kubernetes prometheus deployments, located
+under part3/kubernete-prometheus/.  These are template files based off of the prometheus releases and are commonly used among of defense industry.
+
+I editted the config-map.yaml file to include the following scrape config for the giftcardsite:
+
+      - job_name: 'giftcardsite'
+
+        # Override the global default and scrape targets from this job every 5 seconds.
+        scrape_interval: 5s
+
+        static_configs:
+          - targets: ['192.168.49.2:31575']
+            labels:
+              group: 'production'
+
+
+In addition I added several rules to the config-map.yam to represent the different graphs that are being tracked in views.py
+Once this was done I ran the following commands:
+kubectl create -f clusterRole.yaml
+kubectl create -f config-map.yaml
+kubectl create  -f prometheus-deployment.yaml 
+kubectl create -f prometheus-service.yaml
+
+This initialized my prometheus-service that runs the prometheus web interface.
+I then added kube-state-metrics template files also provided by Kubernetes, for the cluser-role-binding, cluster-role, and deployment.yaml
+I then ran the command below to deploy the metrics service.
+kubectl apply -f kube-state-metrics-configs/
+
+Lastly I added an alertmanager to the prometheus build using the promethus library alertmanager, https://github.com/prometheus/alertmanager.
+I ran following commands on the template yaml files.
+
+kubectl create -f AlertTemplateConfigMap.yaml
+kubectl create -f Deployment.yaml
+kubectl create -f Service.yaml
+
+After this was completed, I ran the prometheus-service using minikube and the starts and alerts were showing.
+Most of the information provided on the prometheus site are basic information you would see if you installed it with say helm.
+Using this route I was able to have more control over the rules and scrape config, to edit and add the giftcard site information.
